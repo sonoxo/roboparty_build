@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "vehicle-hangar/index.html"
+      - "vehicle-hangar/tests/**"
       - ".github/workflows/deploy-vehicle-hangar-pages.yml"
   workflow_dispatch:
 
@@ -39,6 +40,7 @@ jobs:
           test -s _site/index.html
           grep -q "OrbitControls" _site/index.html
           grep -q "new THREE.Group()" _site/index.html
+          node --test vehicle-hangar/tests/smoke.test.mjs
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
