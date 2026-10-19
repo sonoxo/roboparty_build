@@ -1,0 +1,50 @@
+name: Deploy Three.js Vehicle Hangar
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "vehicle-hangar/index.html"
+      - ".github/workflows/deploy-vehicle-hangar-pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: vehicle-hangar-pages
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish isolated static gallery
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Prepare and smoke-check site
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cp vehicle-hangar/index.html _site/index.html
+          touch _site/.nojekyll
+          test -s _site/index.html
+          grep -q "OrbitControls" _site/index.html
+          grep -q "new THREE.Group()" _site/index.html
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
