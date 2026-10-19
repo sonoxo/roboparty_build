@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#081219">
+  <meta name="description" content="An interactive Three.js gallery of three original sci-fi vehicle block-out models.">
+  <title>Vehicle Hangar | Three.js Block-out Gallery</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #081219;
+      --text: #ecf7f7;
+      --muted: #94aab4;
+      --line: rgba(145, 191, 200, 0.19);
+      --glass: rgba(9, 23, 30, 0.82);
+      --accent: #83dfd5;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button { font: inherit; }
+    #viewport { position: fixed; inset: 0; }
+    #viewport canvas { display: block; width: 100%; height: 100%; outline: none; touch-action: none; }
+    .vignette { position: fixed; inset: 0; pointer-events: none; z-index: 1; background: linear-gradient(180deg, rgba(5,12,17,.72), transparent 28%, transparent 67%, rgba(5,12,17,.76)), linear-gradient(90deg, rgba(5,12,17,.23), transparent 24%, transparent 76%, rgba(5,12,17,.23)); }
+    .masthead { position: fixed; top: max(22px, env(safe-area-inset-top)); left: max(22px, env(safe-area-inset-left)); z-index: 3; pointer-events: none; }
+    .eyebrow { display: flex; gap: 9px; align-items: center; text-transform: uppercase; letter-spacing: .23em; font-size: 10px; font-weight: 750; color: #90dace; }
+    .beacon { width: 6px; height: 6px; border-radius: 50%; background: #87f1d8; box-shadow: 0 0 12px rgba(103, 251, 208, .8); }
+    h1 { font-size: clamp(23px, 3vw, 35px); font-weight: 740; line-height: 1.13; letter-spacing: -.045em; margin: 10px 0 7px; }
+    .subhead { color: var(--muted); max-width: 300px; margin: 0; font-size: 12px; }
+    .top-controls { position: fixed; right: max(22px, env(safe-area-inset-right)); top: max(24px, env(safe-area-inset-top)); z-index: 4; display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+    .chip { border: 1px solid var(--line); border-radius: 8px; padding: 8px 11px; font-size: 10px; text-transform: uppercase; letter-spacing: .11em; color: #bbd5d8; background: rgba(9,25,32,.7); backdrop-filter: blur(16px); }
+    .toggle { color: #d2e4e4; cursor: pointer; transition: background .2s, border-color .2s; }
+    .toggle:hover, .toggle[aria-pressed="true"] { background: rgba(45,102,102,.43); border-color: rgba(139,224,209,.68); }
+    .toggle:focus-visible, .asset:focus-visible, .home:focus-visible { outline: 2px solid #90eadb; outline-offset: 3px; }
+    .bottom-area { position: fixed; z-index: 3; left: 50%; bottom: max(22px, env(safe-area-inset-bottom)); width: min(970px, calc(100vw - 44px)); transform: translateX(-50%); }
+    .interface-label { display: flex; justify-content: space-between; align-items: center; margin: 0 4px 10px; text-transform: uppercase; letter-spacing: .17em; font-size: 10px; color: #9cb6b8; }
+    .asset-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 106px; gap: 9px; }
+    .asset, .home { min-width: 0; min-height: 85px; border: 1px solid var(--line); border-radius: 12px; background: var(--glass); text-align: left; padding: 13px 15px; cursor: pointer; color: inherit; backdrop-filter: blur(20px); transition: transform .18s, border-color .18s, background .18s; }
+    .asset:hover, .home:hover { transform: translateY(-2px); background: rgba(19,44,51,.95); border-color: rgba(176,221,223,.45); }
+    .asset[aria-pressed="true"] { border-color: var(--tile-color); background: rgba(27,48,52,.94); box-shadow: inset 0 2px 0 var(--tile-color); }
+    .asset-no { display: flex; align-items: center; gap: 8px; letter-spacing: .16em; font-size: 10px; color: var(--tile-color); font-weight: 800; }
+    .asset-no:before { content: ""; width: 17px; height: 2px; background: currentColor; }
+    .asset-name { display: block; margin: 5px 0 0; font-size: 15px; font-weight: 720; letter-spacing: -.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .asset-desc { display: block; color: #9aaeb4; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .home { display: flex; justify-content: center; align-items: center; flex-direction: column; gap: 7px; text-align: center; text-transform: uppercase; font-size: 10px; letter-spacing: .14em; color: #d9e7e7; }
+    .home-symbol { font-size: 25px; line-height: 1; font-weight: 300; color: #99cfca; }
+    .interaction-hint { position: fixed; bottom: 133px; left: 50%; transform: translateX(-50%); z-index: 2; white-space: nowrap; font-size: 10px; text-transform: uppercase; letter-spacing: .19em; color: rgba(200,220,224,.7); pointer-events: none; }
+    .status { position: fixed; z-index: 2; right: 23px; top: 115px; font-size: 10px; color: #8cacb2; text-align: right; letter-spacing: .15em; line-height: 2; text-transform: uppercase; pointer-events: none; }
+    .status strong { color: #a7ece0; font-weight: 600; }
+    #error { display: none; position: fixed; z-index: 10; top: 50%; left: 50%; transform: translate(-50%,-50%); padding: 20px 25px; max-width: 500px; width: calc(100vw - 40px); border: 1px solid #b86c6c; border-radius: 12px; color: #ffe5e5; background: #2a181e; box-shadow: 0 18px 80px #0009; }
+    #error[role="alert"] { display: block; }
+    @media(max-width: 700px) {
+      .masthead { top: 17px; left: 16px; }
+      .masthead h1 { font-size: 24px; margin-top: 7px; }
+      .masthead .subhead { max-width: 210px; font-size: 11px; }
+      .top-controls { top: 19px; right: 12px; max-width: 135px; gap: 6px; }
+      .chip { padding: 6px 8px; font-size: 9px; }
+      .top-controls .version { display: none; }
+      .status { display: none; }
+      .bottom-area { bottom: max(12px, env(safe-area-inset-bottom)); width: calc(100vw - 24px); }
+      .asset-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+      .asset { min-height: 79px; padding: 10px 8px; }
+      .asset-name { font-size: 12px; margin-top: 5px; }
+      .asset-desc { font-size: 9px; }
+      .asset-no { font-size: 9px; }
+      .asset-no:before { width: 9px; }
+      .home { grid-column: 1/-1; min-height: 31px; padding: 4px; flex-direction: row; gap: 8px; }
+      .home-symbol { font-size: 17px; }
+      .interaction-hint { bottom: 151px; font-size: 9px; letter-spacing: .1em; }
+      .interface-label { font-size: 9px; margin-bottom: 7px; }
+    }
+    @media(prefers-reduced-motion: reduce) { .asset, .home, .toggle { transition: none; } }
+  </style>
+  <!-- The Three.js runtime and OrbitControls are the only external resources. Both are pinned to one version. -->
+  <script type="importmap">
+  {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+  </script>
+</head>
+<body>
+  <main id="viewport" aria-label="Interactive 3D vehicle gallery"></main>
+  <div class="vignette" aria-hidden="true"></div>
+  <header class="masthead">
+    <div class="eyebrow"><span class="beacon"></span> Gpt-Doug / design lab</div>
+    <h1>VEHICLE HANGAR<span style="color:#7bd5cc">.</span></h1>
+    <p class="subhead">Three original sci-fi machine concepts.<br>Interactive low-poly block-out gallery.</p>
+  </header>
+  <nav class="top-controls" aria-label="Viewer settings">
+    <span class="chip version">THREE.JS / R170</span>
+    <button class="chip toggle" type="button" id="rotate-button" aria-pressed="false">Auto orbit: off</button>
+    <button class="chip toggle" type="button" id="wire-button" aria-pressed="false">Wireframe: off</button>
+  </nav>
+  <div class="status" aria-hidden="true">03 / assets loaded<br><strong>Real-time WebGL</strong><br>Procedural geometry only</div>
+  <div class="interaction-hint" aria-hidden="true">Drag to rotate &nbsp; · &nbsp; Scroll / pinch to zoom &nbsp; · &nbsp; Right-drag to pan</div>
+  <section class="bottom-area" aria-label="Choose a vehicle to inspect">
+    <div class="interface-label"><span>Prototype collection / 001—003</span><span>View selection</span></div>
+    <div class="asset-list">
+      <button class="asset" style="--tile-color:#84d8b7" data-focus="tank" aria-pressed="false" type="button">
+        <span class="asset-no">01 / ARMORED</span><span class="asset-name">Siege Tank</span><span class="asset-desc">Heavy tracked platform</span>
+      </button>
+      <button class="asset" style="--tile-color:#f2ba76" data-focus="mech" aria-pressed="false" type="button">
+        <span class="asset-no">02 / WALKER</span><span class="asset-name">Quadruped Mech</span><span class="asset-desc">Four articulated legs</span>
+      </button>
+      <button class="asset" style="--tile-color:#8fbbfa" data-focus="ship" aria-pressed="false" type="button">
+        <span class="asset-no">03 / AIRFRAME</span><span class="asset-name">VTOL Dropship</span><span class="asset-desc">Four ducted lift fans</span>
+      </button>
+      <button class="home" type="button" id="home-button"><span class="home-symbol">⌖</span> Show all</button>
+    </div>
+  </section>
+  <div id="error"></div>
+  <script>
+    // A readable fallback if WebGL or the public Three.js CDN cannot be loaded.
+    window.setTimeout(() => {
+      if (window.__vehicleViewerReady) return;
+      const notice = document.getElementById('error');
+      notice.textContent = 'The 3D viewer could not start. Please enable WebGL and check your internet connection: this HTML file loads the Three.js engine from a public CDN.';
+      notice.setAttribute('role', 'alert');
+    }, 12000);
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // All models are built from native geometries; no textures, model files, build step, or API keys.
+    const viewport = document.getElementById('viewport');
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.innerWidth < 700 ? 1.5 : 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.35;
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.domElement.setAttribute('aria-label', '3D view: drag to orbit, scroll or pinch to zoom');
+    viewport.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color('#081219');
+    scene.fog = new THREE.FogExp2('#081219', 0.011);
+
+    const camera = new THREE.PerspectiveCamera(44, window.innerWidth / window.innerHeight, 0.1, 300);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.065;
+    controls.minDistance = 6;
+    controls.maxDistance = 145;
+    controls.maxPolarAngle = Math.PI * 0.485;
+    controls.autoRotateSpeed = 0.6;
+
+    const ambient = new THREE.HemisphereLight('#a9d7ef', '#162522', 2.0);
+    scene.add(ambient);
+    const keyLight = new THREE.DirectionalLight('#e2f5ff', 3.0);
+    keyLight.position.set(-15, 24, 20);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(window.innerWidth < 700 ? 1024 : 2048, window.innerWidth < 700 ? 1024 : 2048);
+    keyLight.shadow.camera.left = -36;
+    keyLight.shadow.camera.right = 36;
+    keyLight.shadow.camera.top = 27;
+    keyLight.shadow.camera.bottom = -27;
+    keyLight.shadow.camera.near = 1;
+    keyLight.shadow.camera.far = 80;
+    keyLight.shadow.bias = -0.00015;
+    scene.add(keyLight);
+    const rimLight = new THREE.DirectionalLight('#4a9dc3', 2.1);
+    rimLight.position.set(18, 13, -22);
+    scene.add(rimLight);
+
+    const mat = (color, metalness = .54, roughness = .49, emission = null, emissionStrength = 0) =>
+      new THREE.MeshStandardMaterial({
+        color, metalness, roughness,
+        emissive: emission || '#000000', emissiveIntensity: emissionStrength
+      });
+    const palette = {
+      floor: mat('#0c1b22', .16, .83), dais: mat('#162932', .55, .56), rim: mat('#34545d', .60, .36),
+      rubber: mat('#10191d', .12, .88), black: mat('#101b22', .36, .66), joint: mat('#293b42', .83, .32),
+      steel: mat('#91a9af', .83, .29), optic: mat('#71e9df', .3, .17, '#55dfdc', 2.1),
+      vent: mat('#0a1216', .42, .81), orange: mat('#eca85f', .40, .28, '#f6a34f', .42),
+      tank: mat('#577d74', .65, .51), tankDark: mat('#304a49', .66, .52), tankLight: mat('#85b6a2', .57, .40),
+      mech: mat('#a6ac9c', .58, .47), mechDark: mat('#555e59', .66, .47), mechGold: mat('#d8ab6f', .64, .36),
+      ship: mat('#536b7e', .65, .48), shipDark: mat('#2d4556', .61, .53), shipLight: mat('#879fb4', .69, .38),
+      glass: mat('#182f43', .75, .18, '#164460', .24),
+      engineGlow: mat('#75c5f5', .25, .27, '#379ce0', 2.0)
+    };
+
+    function box(parent, name, width, height, depth, material, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) {
+      const obj = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), material);
+      obj.name = name;
+      obj.position.set(x, y, z);
+      obj.rotation.set(rx, ry, rz);
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      parent.add(obj);
+      return obj;
+    }
+    function cylinder(parent, name, topRadius, bottomRadius, height, material, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0, sides = 12) {
+      const obj = new THREE.Mesh(new THREE.CylinderGeometry(topRadius, bottomRadius, height, sides), material);
+      obj.name = name;
+      obj.position.set(x, y, z);
+      obj.rotation.set(rx, ry, rz);
+      obj.castShadow = true;
+      obj.receiveShadow = true;
+      parent.add(obj);
+      return obj;
+    }
+    function strut(parent, name, start, end, width, depth, material) {
+      const a = new THREE.Vector3(...start);
+      const b = new THREE.Vector3(...end);
+      const part = box(parent, name, width, a.distanceTo(b), depth, material);
+      part.position.copy(a).add(b).multiplyScalar(.5);
+      part.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.sub(a).normalize());
+      return part;
+    }
+
+    // -----------------------------------------------------------------------
+    // MODEL 1: HEAVY SCI-FI SIEGE TANK - one self-contained THREE.Group.
+    // The vehicle faces positive Z in its local coordinates.
+    // -----------------------------------------------------------------------
+    function makeTank() {
+      const tank = new THREE.Group();
+      tank.name = 'Siege Tank';
+
+      box(tank, 'low profile main armored hull', 5.45, .91, 8.10, palette.tank, 0, 1.29, -.13);
+      box(tank, 'upper hull armored deck', 5.0, .34, 6.25, palette.tankLight, 0, 1.86, -.55);
+      box(tank, 'inclined front glacis plate', 5.00, .32, 2.25, palette.tank, 0, 1.71, 3.06, -.13);
+      box(tank, 'lower nose ram', 4.4, .31, .7, palette.tankDark, 0, .94, 3.90);
+      box(tank, 'belly armor', 4.5, .25, 7.4, palette.tankDark, 0, .71, -.15);
+
+      for (const side of [-1, 1]) {
+        const x = side * 3.2;
+        box(tank, 'heavy continuous tread pod', 1.68, 1.69, 8.05, palette.rubber, x, .95, -.08);
+        box(tank, 'tread upper armor cover', 1.81, .36, 7.58, palette.tankDark, x, 1.77, -.08);
+        box(tank, 'tread lower run', 1.78, .23, 8.14, palette.joint, x, .19, -.08);
+        box(tank, 'external tread side cover', .22, .64, 6.32, palette.tank, side * 4.09, 1.53, -.08);
+        for (let i = 0; i < 7; i++) {
+          const z = -3.14 + i * 1.02;
+          cylinder(tank, 'visible track road wheel', .46, .46, .20, palette.joint, side * 4.08, .85, z, 0, 0, Math.PI / 2, 16);
+          cylinder(tank, 'wheel hub', .20, .20, .23, palette.steel, side * 4.22, .85, z, 0, 0, Math.PI / 2, 12);
+        }
+        for (let i = 0; i < 17; i++) {
+          const z = -3.78 + i * .47;
+          box(tank, 'raised tread shoe upper', 1.85, .10, .23, palette.joint, x, 2.00, z);
+          box(tank, 'raised tread shoe lower', 1.85, .10, .23, palette.joint, x, .10, z);
+        }
+        for (const z of [-3.75, 3.65]) {
+          box(tank, 'tread end cap', 1.8, 1.18, .27, palette.rubber, x, .92, z);
+        }
+        box(tank, 'front fender light', .51, .2, .15, palette.optic, side * 1.87, 1.65, 4.02);
+        box(tank, 'hull external armor band', .18, .35, 5.9, palette.tankDark, side * 2.62, 1.80, -.58);
+      }
+      box(tank, 'rear engine block', 4.55, .69, 2.1, palette.tankDark, 0, 2.17, -2.92);
+      for (let i = -4; i <= 4; i++) {
+        box(tank, 'rear engine cooling grille', .23, .09, 1.40, palette.vent, i * .48, 2.57, -3.0);
+      }
+      for (const x of [-1.7, 1.7]) {
+        cylinder(tank, 'engine exhaust stack', .25, .30, .65, palette.steel, x, 2.79, -3.56);
+        cylinder(tank, 'exhaust opening', .17, .17, .03, palette.vent, x, 3.13, -3.56);
+      }
+
+      const turret = new THREE.Group();
+      turret.name = 'Top turret and forward-facing cannon';
+      turret.position.set(0, 2.04, .38);
+      tank.add(turret);
+      cylinder(turret, 'armored rotating turret ring', 2.0, 2.0, .28, palette.joint, 0, .14, -.14, 0, 0, 0, 14);
+      box(turret, 'low turret main block', 3.72, .78, 3.55, palette.tank, 0, .62, -.10);
+      box(turret, 'turret roof', 2.92, .20, 2.92, palette.tankLight, 0, 1.1, -.25);
+      for (const s of [-1, 1]) {
+        box(turret, 'angled turret cheek armor', .58, .59, 2.22, palette.tankDark, s * 1.82, .67, .38, 0, s * -.19);
+      }
+      box(turret, 'cannon mantlet', 1.28, .79, .70, palette.tankDark, 0, .72, 1.69);
+      cylinder(turret, 'main forward cannon', .29, .38, 4.38, palette.steel, 0, .74, 4.07, Math.PI / 2, 0, 0, 12);
+      cylinder(turret, 'cannon thermal sleeve', .44, .44, 1.62, palette.tankDark, 0, .74, 3.03, Math.PI / 2);
+      cylinder(turret, 'cannon muzzle collar', .43, .43, .27, palette.joint, 0, .74, 6.34, Math.PI / 2);
+      cylinder(turret, 'dark muzzle opening', .23, .23, .028, palette.vent, 0, .74, 6.49, Math.PI / 2);
+      cylinder(turret, 'coaxial sensor tube', .11, .11, 1.02, palette.steel, .82, .62, 2.13, Math.PI / 2);
+      cylinder(turret, 'top observation cupola', .64, .71, .35, palette.tankDark, -.72, 1.31, -1.08);
+      cylinder(turret, 'cupola hatch', .53, .53, .08, palette.joint, -.72, 1.53, -1.08);
+      box(turret, 'amber top warning light', .30, .13, .20, palette.orange, 1.15, 1.23, -.85);
+      return tank;
+    }
+
+    // -----------------------------------------------------------------------
+    // MODEL 2: AUTONOMOUS QUADRUPED WALKER - one self-contained THREE.Group.
+    // Each leg is mechanically articulated with visible hip/knee/ankle joints.
+    // -----------------------------------------------------------------------
+    function makeMech() {
+      const mech = new THREE.Group();
+      mech.name = 'Quadruped Combat Mech';
+      box(mech, 'central armored body', 3.25, 1.00, 4.75, palette.mech, 0, 2.72, 0);
+      box(mech, 'lower chassis keel', 2.58, .51, 3.75, palette.mechDark, 0, 2.18, -.15);
+      box(mech, 'angled top deck', 2.95, .22, 3.82, palette.mechDark, 0, 3.32, -.16);
+      box(mech, 'front face armor', 2.66, .77, .33, palette.mechGold, 0, 2.78, 2.43, -.13);
+      box(mech, 'front panoramic sensor bar', 1.76, .17, .11, palette.optic, 0, 2.94, 2.66);
+      box(mech, 'rear power unit', 2.44, .65, 1.1, palette.joint, 0, 2.93, -2.14);
+
+      for (const side of [-1, 1]) {
+        box(mech, 'faceted shoulder side plates', .37, .52, 2.97, palette.mechDark, side * 1.73, 2.98, 0, 0, 0, side * -.14);
+        for (const fb of [-1, 1]) {
+          const hip = [side * 1.82, 2.54, fb * 1.57];
+          const knee = [side * 2.86, 1.40, fb * 2.07];
+          const ankle = [side * 3.18, .40, fb * 2.57];
+          cylinder(mech, 'hip rotation bearing', .46, .46, .66, palette.joint, ...hip, 0, 0, Math.PI / 2);
+          cylinder(mech, 'outer hip cap', .25, .25, .70, palette.mechGold, side * 2.20, 2.54, fb * 1.57, 0, 0, Math.PI / 2);
+          strut(mech, 'upper articulated leg armor', hip, knee, .50, .61, palette.mech);
+          strut(mech, 'upper leg inner piston',
+            [hip[0] + side * .14, hip[1] - .12, hip[2] + fb * .14],
+            [knee[0] + side * .10, knee[1] + .12, knee[2] + fb * .10], .14, .17, palette.steel);
+          cylinder(mech, 'knee pivot joint', .36, .36, .73, palette.joint, ...knee, 0, 0, Math.PI / 2);
+          cylinder(mech, 'knee highlighted center', .16, .16, .80, palette.orange, side * 2.94, 1.40, fb * 2.07, 0, 0, Math.PI / 2);
+          strut(mech, 'lower articulated leg armor', knee, ankle, .38, .48, palette.mechDark);
+          strut(mech, 'lower leg hydraulic',
+            [knee[0] - side * .12, knee[1] - .11, knee[2]],
+            [ankle[0] - side * .12, ankle[1] + .12, ankle[2]], .14, .15, palette.steel);
+          cylinder(mech, 'ankle pivot', .22, .22, .58, palette.steel, ...ankle, 0, 0, Math.PI / 2);
+          box(mech, 'flat grippy foot', 1.20, .25, 1.26, palette.rubber, ankle[0], .19, ankle[2] + fb * .18);
+          for (const offset of [-.31, .31]) {
+            box(mech, 'foot toe reinforcement', .32, .13, .59, palette.mechGold,
+              ankle[0] + offset, .30, ankle[2] + fb * .44);
+          }
+        }
+      }
+      for (let i = -3; i <= 3; i++) {
+        box(mech, 'rear cooling vanes', .12, .11, .64, palette.vent, i * .33, 3.32, -2.00);
+      }
+      const pod = new THREE.Group();
+      pod.name = 'Top-mounted weapon and sensor pod';
+      pod.position.set(0, 3.40, .14);
+      mech.add(pod);
+      cylinder(pod, 'sensor pod swivel', .75, .75, .28, palette.joint, 0, .14, 0, 0, 0, 0, 12);
+      box(pod, 'sensor pod armored housing', 1.89, .69, 1.72, palette.mech, 0, .60, .14);
+      box(pod, 'forward optical cluster casing', 1.45, .48, .19, palette.mechDark, 0, .65, 1.05);
+      for (const x of [-.46, 0, .46]) {
+        cylinder(pod, 'pod optical lens', .15, .15, .08, palette.optic, x, .66, 1.17, Math.PI / 2);
+      }
+      for (const x of [-.80, .80]) {
+        cylinder(pod, 'short stylized pod mount', .14, .14, 1.25, palette.steel, x, .38, 1.17, Math.PI / 2);
+        cylinder(pod, 'mount dark tip', .085, .085, .03, palette.vent, x, .38, 1.81, Math.PI / 2);
+      }
+      box(pod, 'roof telemetry plate', 1.13, .13, .85, palette.mechGold, 0, 1.00, -.09);
+      return { mech, pod };
+    }
+
+    // -----------------------------------------------------------------------
+    // MODEL 3: HEAVY VTOL DROPSHIP - one self-contained THREE.Group.
+    // Fuselage, four lift fans, landing skids, wings and tail are box/cylinder meshes.
+    // -----------------------------------------------------------------------
+    function makeDropship() {
+      const ship = new THREE.Group();
+      ship.name = 'VTOL Dropship';
+      const fans = [];
+
+      box(ship, 'long angular armored fuselage', 3.38, 1.22, 7.56, palette.ship, 0, 3.11, -.22);
+      box(ship, 'bottom armored spine', 2.49, .46, 8.13, palette.shipDark, 0, 2.36, -.15);
+      box(ship, 'nose armor front', 2.72, .86, 1.67, palette.shipLight, 0, 3.13, 3.68, -.06);
+      box(ship, 'tapered nose forward cap', 1.72, .59, 1.23, palette.ship, 0, 3.07, 4.90);
+      box(ship, 'nose leading edge', 1.10, .24, .20, palette.shipDark, 0, 2.98, 5.56);
+      box(ship, 'raised cockpit shell', 2.05, .46, 2.76, palette.shipDark, 0, 3.91, 2.31, -.08);
+      box(ship, 'cockpit tinted viewport', 1.77, .33, 2.18, palette.glass, 0, 4.18, 2.47, -.08);
+      box(ship, 'cockpit central canopy support', .11, .13, 2.30, palette.shipLight, 0, 4.39, 2.46, -.08);
+      for (const side of [-1, 1]) {
+        box(ship, 'angled wide side wing', 3.65, .28, 3.82, palette.ship, side * 3.21, 3.11, -.99,
+          0, side * .10, side * -.045);
+        box(ship, 'wing outer aerodynamic edge', .28, .29, 3.66, palette.shipLight, side * 5.03, 3.00, -1.01);
+        box(ship, 'side-mounted VTOL nacelle', 1.83, .63, 5.08, palette.shipDark, side * 5.07, 3.04, -.87);
+        box(ship, 'wing reinforcement rail', .20, .22, 3.52, palette.shipLight, side * 2.07, 3.39, -.92);
+        box(ship, 'wingtip navigation light', .25, .17, .29, side === 1 ? palette.orange : palette.optic,
+          side * 5.83, 3.20, 1.24);
+        box(ship, 'slanted vertical rear tail', .34, 1.63, 1.57, palette.shipLight,
+          side * 1.72, 4.21, -3.45, 0, 0, side * -.24);
+        box(ship, 'rear landing leg', .22, 1.04, .30, palette.steel, side * 1.60, 1.86, -2.43);
+        box(ship, 'front landing leg', .22, 1.04, .30, palette.steel, side * 1.60, 1.86, 2.06);
+        box(ship, 'landing skid', .42, .22, 3.46, palette.rubber, side * 1.60, 1.37, -.17);
+        for (const z of [-2.45, 1.43]) {
+          // All fans sit in the lateral wing nacelles, not on the center fuselage.
+          const x = side * 5.07;
+          cylinder(ship, 'VTOL fan outer duct', .87, .87, .27, palette.rubber, x, 3.51, z, 0, 0, 0, 24);
+          cylinder(ship, 'VTOL fan illuminated inner disc', .67, .67, .28, palette.engineGlow, x, 3.64, z, 0, 0, 0, 24);
+          const fan = new THREE.Group();
+          fan.name = 'VTOL fan rotor';
+          fan.position.set(x, 3.83, z);
+          ship.add(fan);
+          cylinder(fan, 'fan rotor hub', .18, .18, .13, palette.joint, 0, 0, 0, 0, 0, 0, 12);
+          for (let blade = 0; blade < 4; blade++) {
+            const a = blade * Math.PI / 2;
+            const bladeObj = box(fan, 'fan blade', .15, .065, .49, palette.steel,
+              Math.sin(a) * .36, 0, Math.cos(a) * .36);
+            bladeObj.rotation.y = a;
+          }
+          fans.push(fan);
+          box(ship, 'VTOL inlet crossbar', 1.72, .10, .13, palette.shipLight, x, 3.92, z);
+        }
+        cylinder(ship, 'rear thrust outlet', .46, .46, .43, palette.joint,
+          side * .98, 3.09, -4.19, Math.PI / 2);
+        cylinder(ship, 'rear engine energy core', .27, .27, .07, palette.engineGlow,
+          side * .98, 3.09, -4.42, Math.PI / 2);
+      }
+      box(ship, 'rear cargo ramp', 2.27, .78, .24, palette.shipDark, 0, 2.85, -4.07, -.14);
+      for (let i = -2; i <= 2; i++) {
+        box(ship, 'fuselage top vent rib', .18, .13, .84, palette.vent, i * .48, 3.81, -2.60);
+      }
+      return { ship, fans };
+    }
+
+    function addPlatform(cx, width, accent) {
+      const base = new THREE.Group();
+      base.name = 'Exhibition platform';
+      base.position.x = cx;
+      scene.add(base);
+      box(base, 'raised platform base', width, .23, 13.75, palette.dais, 0, -.15, 0);
+      box(base, 'front platform light strip', width - .6, .035, .065, accent, 0, -.015, 6.83);
+      for (const side of [-1, 1]) {
+        box(base, 'platform side trim', .045, .042, 12.91, palette.rim, side * (width / 2 - .11), -.015, 0);
+        for (const z of [-6.40, 6.40]) {
+          box(base, 'platform corner beacon', .22, .07, .35, accent, side * (width / 2 - .39), .04, z);
+        }
+      }
+      for (const z of [-4.7, 0, 4.7]) {
+        box(base, 'subtle deck joint', width - .63, .012, .035, palette.rim, 0, -.025, z);
+      }
+      return base;
+    }
+
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(230, 230), palette.floor);
+    ground.rotation.x = -Math.PI / 2;
+    ground.position.y = -.31;
+    ground.receiveShadow = true;
+    scene.add(ground);
+    const grid = new THREE.GridHelper(180, 72, '#255260', '#18343e');
+    grid.position.y = -.30;
+    grid.material.transparent = true;
+    grid.material.opacity = .38;
+    scene.add(grid);
+    addPlatform(-15.3, 10.10, palette.optic);
+    addPlatform(0, 10.90, palette.orange);
+    addPlatform(15.3, 12.52, palette.engineGlow);
+
+    // Required: three distinct THREE.Group vehicle objects in the scene.
+    const tank = makeTank();
+    const { mech, pod } = makeMech();
+    const { ship, fans } = makeDropship();
+    tank.position.set(-15.3, 0, 0);
+    mech.position.set(0, 0, 0);
+    ship.position.set(15.3, 0, -.35);
+    scene.add(tank, mech, ship);
+    const vehicles = { tank, mech, ship };
+    window.vehicleGroups = vehicles; // Inspect with browser DevTools; each is a THREE.Group.
+
+    const initialTarget = new THREE.Vector3(0, 1.95, 0);
+    function allViewPosition() {
+      const halfVerticalFov = THREE.MathUtils.degToRad(camera.fov * .5);
+      const aspect = window.innerWidth / window.innerHeight;
+      const fitWidthDistance = 45 / (2 * Math.tan(halfVerticalFov) * aspect);
+      const distance = Math.max(40, fitWidthDistance * 1.18);
+      return new THREE.Vector3(0, 1.95 + distance * .33, distance);
+    }
+    controls.target.copy(initialTarget);
+    camera.position.copy(allViewPosition());
+    controls.update();
+    let flight = null;
+    function transitionTo(position, target) {
+      flight = {
+        fromPos: camera.position.clone(), fromTarget: controls.target.clone(),
+        toPos: position.clone(), toTarget: target.clone(), elapsed: 0, duration: .78
+      };
+      controls.autoRotate = false;
+      document.getElementById('rotate-button').setAttribute('aria-pressed', 'false');
+      document.getElementById('rotate-button').textContent = 'Auto orbit: off';
+    }
+    function focusVehicle(id) {
+      const group = vehicles[id];
+      if (!group) return;
+      const target = new THREE.Vector3(group.position.x, id === 'ship' ? 3.1 : 2.2, 0);
+      const offset = id === 'ship'
+        ? new THREE.Vector3(11.8, 9.5, 17.8)
+        : new THREE.Vector3(10, 8.8, 15.5);
+      offset.multiplyScalar(Math.max(1, 0.75 / (window.innerWidth / window.innerHeight)));
+      transitionTo(target.clone().add(offset), target);
+      document.querySelectorAll('[data-focus]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.focus === id)));
+    }
+    function showAll() {
+      transitionTo(allViewPosition(), initialTarget);
+      document.querySelectorAll('[data-focus]').forEach(b => b.setAttribute('aria-pressed', 'false'));
+    }
+    document.querySelectorAll('[data-focus]').forEach(button => {
+      button.addEventListener('click', () => focusVehicle(button.dataset.focus));
+    });
+    document.getElementById('home-button').addEventListener('click', showAll);
+    document.getElementById('rotate-button').addEventListener('click', (e) => {
+      if (flight) flight = null;
+      controls.autoRotate = !controls.autoRotate;
+      e.currentTarget.setAttribute('aria-pressed', String(controls.autoRotate));
+      e.currentTarget.textContent = `Auto orbit: ${controls.autoRotate ? 'on' : 'off'}`;
+    });
+    const wireButton = document.getElementById('wire-button');
+    let wireframe = false;
+    const modelMaterials = new Set();
+    [tank, mech, ship].forEach(root => root.traverse(obj => {
+      if (obj.isMesh && obj.material) modelMaterials.add(obj.material);
+    }));
+    wireButton.addEventListener('click', () => {
+      wireframe = !wireframe;
+      modelMaterials.forEach(material => { material.wireframe = wireframe; });
+      wireButton.setAttribute('aria-pressed', String(wireframe));
+      wireButton.textContent = `Wireframe: ${wireframe ? 'on' : 'off'}`;
+    });
+    controls.addEventListener('start', () => { flight = null; });
+    window.addEventListener('keydown', (event) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.repeat) return;
+      if (event.key === '1') focusVehicle('tank');
+      if (event.key === '2') focusVehicle('mech');
+      if (event.key === '3') focusVehicle('ship');
+      if (event.key === '0') showAll();
+    });
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, window.innerWidth < 700 ? 1.5 : 2));
+      if (!document.querySelector('[data-focus][aria-pressed="true"]')) {
+        camera.position.copy(allViewPosition());
+        controls.target.copy(initialTarget);
+      }
+    });
+
+    const clock = new THREE.Clock();
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = Math.min(clock.getDelta(), .06);
+      const t = clock.elapsedTime;
+      if (flight) {
+        flight.elapsed += delta;
+        const p = Math.min(flight.elapsed / flight.duration, 1);
+        const eased = p * p * (3 - 2 * p);
+        camera.position.copy(flight.fromPos).lerp(flight.toPos, eased);
+        controls.target.copy(flight.fromTarget).lerp(flight.toTarget, eased);
+        if (p === 1) flight = null;
+      }
+      if (!reducedMotion) {
+        fans.forEach((fan, i) => { fan.rotation.y += delta * (i % 2 === 0 ? 5.4 : -5.4); });
+        pod.rotation.y = Math.sin(t * .42) * .17;
+        ship.position.y = Math.sin(t * .75) * .065;
+      }
+      controls.update(delta);
+      renderer.render(scene, camera);
+    }
+    window.__vehicleViewerReady = true;
+    animate();
+  </script>
+</body>
+</html>
