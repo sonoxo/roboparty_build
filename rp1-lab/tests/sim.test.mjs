@@ -87,7 +87,7 @@ test('static browser UI declares pinned three.js, offline safety, controls', () 
   }
   assert.match(html, /NO ROBOT CONNECTED/);
   assert.doesNotMatch(ui, /new WebSocket|navigator\.serial|navigator\.usb/);
-  const parsed = spawnSync(process.execPath, ['--check'], {
+  const parsed = spawnSync(process.execPath, ['--check', '--input-type=module'], {
     input: ui, encoding: 'utf8', timeout: 10000
   });
   assert.equal(parsed.status, 0, parsed.stderr);
