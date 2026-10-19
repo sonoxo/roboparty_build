@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#060e15">
+  <meta name="description" content="XUNIA and GPT-Doug: interactive, simulation-only humanoid mission lab inspired by RoboParty RP1.">
+  <title>XUNIA // RoboParty RP1 Simulation Lab</title>
+  <style>
+    :root{color-scheme:dark;--bg:#071119;--glass:rgba(10,22,32,.91);--line:#27404c;--text:#e8f5f6;--muted:#92aab5;--cyan:#64e2d1;--blue:#71b5e9;--amber:#eab87e;--danger:#ff8c91}
+    *{box-sizing:border-box}html,body{margin:0;height:100%;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}button,select,input{font:inherit}button,select{color:inherit}a{color:var(--cyan);text-decoration:none}a:hover{text-decoration:underline}
+    #viewport{position:fixed;inset:0}#viewport canvas{display:block;width:100%;height:100%;touch-action:none;outline:none}
+    .shade{position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse at 52% 45%,transparent 25%,#061018ad 94%),linear-gradient(180deg,#06101999 0%,transparent 32%,#061019aa 100%)}
+    header{position:fixed;top:0;left:0;right:0;z-index:4;min-height:86px;display:flex;align-items:center;justify-content:space-between;padding:17px 25px;gap:12px;border-bottom:1px solid #253944;background:linear-gradient(90deg,#0b1b28e6,#081720b2);backdrop-filter:blur(15px)}
+    .brand .eyebrow{color:var(--cyan);font-size:10px;font-weight:760;letter-spacing:.24em;text-transform:uppercase}.brand h1{font-size:clamp(18px,2vw,25px);line-height:1.1;letter-spacing:-.04em;margin:6px 0 0}.brand h1 span{color:var(--cyan)}
+    .badges{display:flex;flex-wrap:wrap;gap:7px;justify-content:flex-end}.badge{border:1px solid #2c5357;border-radius:6px;background:#163037bb;padding:7px 10px;color:#c3f2e4;font-size:10px;font-weight:700;letter-spacing:.13em;white-space:nowrap}.badge.warning{border-color:#7b5b43;background:#362619aa;color:#f6c694}
+    .panel{position:fixed;top:104px;bottom:20px;width:300px;z-index:3;overflow-y:auto;border:1px solid #355360;border-radius:15px;background:var(--glass);box-shadow:0 20px 60px #0008;backdrop-filter:blur(22px);scrollbar-color:#3f6570 transparent}
+    .left{left:20px;padding:19px}.right{right:20px;padding:19px}.panel-title{color:#83f5e2;font-size:10px;font-weight:800;letter-spacing:.19em;text-transform:uppercase;margin:0 0 14px}
+    .rule{border:0;border-top:1px solid #2b434f;margin:17px 0}.form-label{display:block;color:#b6ccd1;font-size:11px;font-weight:760;letter-spacing:.13em;text-transform:uppercase;margin:0 0 8px}
+    select{display:block;width:100%;background:#102833;border:1px solid #456473;border-radius:9px;padding:11px;cursor:pointer;outline-offset:3px}.description{color:var(--muted);font-size:12px;line-height:1.55;min-height:52px;margin:9px 0 0}
+    .actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.btn{background:#122a36;border:1px solid #46626e;border-radius:9px;padding:12px 9px;cursor:pointer;font-size:11px;font-weight:780;letter-spacing:.06em;transition:background .2s,transform .2s}.btn:hover:not(:disabled){background:#245063;transform:translateY(-1px)}.btn:disabled{opacity:.45;cursor:not-allowed}.btn.primary{background:#1b786f;border-color:#4ba99c;color:#fff}.btn.warn{grid-column:span 2;background:#4b242c;border-color:#ae6373;color:#ffccd2}.btn.secondary{background:#172d36}.btn:focus-visible,select:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+    .row{display:flex;align-items:center;justify-content:space-between;gap:10px}.readout{font-variant-numeric:tabular-nums;font-size:13px;font-weight:760;color:#d9f4ed}.hint{font-size:10px;color:#819eaa;line-height:1.65}.slider{accent-color:#73dfcf;width:100%;margin:12px 0 2px}
+    .metric-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}.metric{border:1px solid #29434f;border-radius:10px;padding:12px;background:#102531}.metric label{font-size:9px;letter-spacing:.13em;text-transform:uppercase;color:#91aeb7}.metric strong{display:block;margin-top:4px;font-size:20px;font-variant-numeric:tabular-nums}.metric small{font-size:10px;color:#90afb7}
+    .telemetry{display:grid;gap:9px;font-size:12px}.telemetry-line{display:flex;gap:12px;justify-content:space-between}.telemetry-line span:first-child{color:#8ea6ad}.telemetry-line strong{font-variant-numeric:tabular-nums;font-weight:670;text-align:right}
+    .progress-track{height:7px;border-radius:30px;background:#26404c;overflow:hidden;margin-top:9px}.progress-track>div{height:100%;width:0;background:linear-gradient(90deg,#448da3,#75f3cd);transition:width .18s}
+    .log{display:grid;gap:8px;max-height:216px;overflow-y:auto}.logitem{padding:9px 10px;border-radius:7px;background:#142732;border-left:2px solid #5bb3ad;font-size:11px;color:#bed0d4;line-height:1.4}.logitem b{color:#e9f9ed;font-size:10px}.logitem small{color:#88a7b0}
+    .hud{position:fixed;left:50%;top:109px;transform:translateX(-50%);z-index:2;text-align:center;pointer-events:none;min-width:230px}.hud .kicker{font-size:10px;letter-spacing:.23em;font-weight:760;color:#89ccc4}.hud .name{font-size:20px;font-weight:790;letter-spacing:-.03em;margin:6px auto}.hud .small{font-size:11px;color:#aec5ca}
+    .nav-footer{position:fixed;z-index:2;bottom:18px;left:50%;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;gap:10px;background:#081925df;border:1px solid #355261;border-radius:9px;padding:9px 13px;font-size:11px;color:#b3c8cc;white-space:nowrap}.nav-footer span{color:#6b828a}.nav-footer a{color:#abe7dd}
+    .error{display:none;position:fixed;z-index:10;top:48%;left:50%;transform:translate(-50%,-50%);width:min(550px,calc(100vw - 28px));padding:22px;border-radius:14px;border:1px solid #c06d75;background:#39252a;color:#ffe0df}.error[role="alert"]{display:block}
+    .stat-pill{color:#70ebc9}.stat-pill.stopped{color:var(--danger)}.stat-pill.done{color:var(--amber)}
+    @media(max-width:1100px){.panel{width:256px;top:99px}.left{left:10px;padding:14px}.right{right:10px;padding:14px}.hud{top:104px}.hud .name{font-size:17px}}
+    @media(max-width:800px){header{padding:11px 13px;min-height:73px}.brand h1{font-size:18px}.brand .eyebrow{font-size:9px}.badges .badge{font-size:9px;padding:5px 7px}.right{display:none}.left{top:auto;left:10px;right:10px;bottom:55px;width:auto;max-height:39vh;padding:12px 15px}.left .panel-title{margin-bottom:6px}.left .description{min-height:0}.hud{top:87px;width:80%;max-width:360px}.hud .name{font-size:15px}.nav-footer{bottom:8px;font-size:10px;padding:7px 10px}.actions .btn{padding:10px 6px}.rule{margin:10px 0}.hint.mobile-hide{display:none}}
+    @media(max-width:480px){.brand h1{font-size:16px}.badges{max-width:146px}.badge.warning{display:none}.left{max-height:42vh}.hud .small{font-size:10px}.actions{gap:6px}.description{font-size:11px}}
+    @media(prefers-reduced-motion:reduce){.btn,.progress-track>div{transition:none}}
+  </style>
+  <script type="importmap">
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+  </script>
+</head>
+<body>
+  <div id="viewport" aria-label="Interactive RP1-inspired 3D humanoid and fictional mission environment"></div>
+  <div class="shade" aria-hidden="true"></div>
+  <header>
+    <div class="brand"><div class="eyebrow">ZYRA / XUNIA · GPT-DOUG-LLM</div><h1>ROBOPARTY <span>RP1</span> // LAB</h1></div>
+    <div class="badges"><span class="badge" id="top-state">SIMULATION / IDLE</span><span class="badge warning">NO ROBOT CONNECTED</span></div>
+  </header>
+  <main>
+    <section class="panel left" aria-label="Simulator controls">
+      <p class="panel-title">01 / Mission control</p>
+      <label for="scenario" class="form-label">Synthetic environment</label>
+      <select id="scenario">
+        <option value="rescue">Disaster response</option>
+        <option value="infrastructure">Infrastructure inspection</option>
+        <option value="maritime">Maritime aid exercise</option>
+      </select>
+      <p id="scenario-info" class="description"></p>
+      <div class="actions" aria-label="Mission actions">
+        <button id="start" class="btn primary" type="button">▶ START</button>
+        <button id="pause" class="btn secondary" type="button">Ⅱ PAUSE</button>
+        <button id="step" class="btn secondary" type="button">STEP +1</button>
+        <button id="reset" class="btn secondary" type="button">↻ RESET</button>
+        <button id="estop" class="btn warn" type="button">■ EMERGENCY STOP / SIM</button>
+      </div>
+      <hr class="rule">
+      <p class="panel-title">02 / Motion preview</p>
+      <label class="form-label" for="pose">Pose (visual only)</label>
+      <select id="pose">
+        <option value="neutral">Neutral stance</option>
+        <option value="wave">Signal / wave</option>
+        <option value="inspect">Inspect / look down</option>
+        <option value="reach">Reach / handoff</option>
+      </select>
+      <div class="row" style="margin-top:14px"><label for="speed" class="form-label" style="margin:0">Playback rate</label><output id="speed-value" class="readout" for="speed">1.0x</output></div>
+      <input id="speed" class="slider" type="range" min=".5" max="2" step=".25" value="1" aria-label="Simulator playback speed">
+      <div class="row" style="margin:11px 0 0"><label for="wireframe" class="form-label" style="margin:0">Mesh view</label><button id="wireframe" class="btn" type="button" aria-pressed="false">WIREFRAME OFF</button></div>
+      <hr class="rule">
+      <button id="export" class="btn" type="button" style="width:100%">↓ EXPORT PROVENANCE TRACE (JSON)</button>
+      <p class="hint">Space: start / pause · Esc: simulation stop. Motions and sensor readings are generated locally, not from RoboParty hardware.</p>
+    </section>
+    <section class="hud" aria-label="Current mission stage" aria-live="polite">
+      <div class="kicker">BIOCHIP / ONTOLOGY TELEMETRY</div>
+      <div class="name" id="checkpoint">Ready for mission</div>
+      <div class="small" id="mission-caption">Select a route to inspect synthetic telemetry.</div>
+    </section>
+    <aside class="panel right" aria-label="Telemetry and audit information">
+      <p class="panel-title">03 / Offline telemetry</p>
+      <div class="metric-grid">
+        <div class="metric"><label>Battery (sim)</label><strong id="battery">100%</strong><small>No physical sensor</small></div>
+        <div class="metric"><label>Mission clock</label><strong id="clock">0:00</strong><small>Accelerated simulation</small></div>
+      </div>
+      <hr class="rule">
+      <div class="telemetry">
+        <div class="telemetry-line"><span>System state</span><strong id="status" class="stat-pill">IDLE</strong></div>
+        <div class="telemetry-line"><span>Waypoint</span><strong id="waypoint">0 / 4</strong></div>
+        <div class="telemetry-line"><span>Position (sim)</span><strong id="position">0.0 / 0.0 m</strong></div>
+        <div class="telemetry-line"><span>Data origin</span><strong>SYNTHETIC</strong></div>
+        <div class="telemetry-line"><span>Robot actuator I/O</span><strong>DISABLED</strong></div>
+        <div class="telemetry-line"><span>Safety stop</span><strong id="safety">READY / SIM</strong></div>
+      </div>
+      <hr class="rule">
+      <div class="row"><span class="panel-title" style="margin:0">Route complete</span><output class="readout" id="progress-label">0%</output></div>
+      <div class="progress-track" role="progressbar" aria-label="Route completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-track"><div id="progress"></div></div>
+      <hr class="rule">
+      <p class="panel-title">04 / Audit trail</p>
+      <div id="log" class="log" aria-live="polite" aria-label="Recent synthetic events"></div>
+      <p class="hint">Prototype only. Not an official RoboParty digital twin; no robot dynamics, certified safety, ROS 2 actuator link, or real-world defense readiness.</p>
+    </aside>
+  </main>
+  <nav class="nav-footer" aria-label="Project links">
+    <a href="../index.html">← VEHICLE HANGAR</a><span>·</span><a href="https://github.com/Roboparty/RP1" target="_blank" rel="noopener noreferrer">RP1 SOURCE ↗</a><span>·</span><a href="https://roboparty.com/documents/roboto-01" target="_blank" rel="noopener noreferrer">OFFICIAL DOCS ↗</a>
+  </nav>
+  <div class="error" id="error-message"></div>
+  <script>
+    window.setTimeout(function(){
+      if (!window.__rp1LabReady) {
+        var err = document.getElementById('error-message');
+        err.textContent = "3D mode has not started. Check WebGL and connection to the public Three.js CDN. No hardware link is attempted.";
+        err.setAttribute('role','alert');
+      }
+    }, 12000);
+  </script>
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>
